@@ -10,7 +10,8 @@
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "clean": "rimraf packages/*.*/dist",
-        "build": "npm run build --workspaces"
+        "build": "npm run build --workspaces",
+        "tw2gem-server": "node tw2gem-server-runner.js"
     },
     "devDependencies": {
         "@eslint/js": "^8.56.0",

@@ -1,4 +1,4 @@
-import { Tw2GemServer } from '@tw2gem/server';
+import { Tw2GemServer } from './packages/tw2gem-server/dist/index.js';
 
 const PORT = process.env.PORT || 12001;
 
