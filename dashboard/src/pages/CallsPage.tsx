@@ -26,6 +26,7 @@ export default function CallsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCall, setSelectedCall] = useState<CallLog | null>(null)
   const [showTranscript, setShowTranscript] = useState(false)
+  const [showRecordingPlayer, setShowRecordingPlayer] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCalls, setTotalCalls] = useState(0)
   const callsPerPage = 20
@@ -135,6 +136,11 @@ export default function CallsPage() {
   const handleViewTranscript = (call: CallLog) => {
     setSelectedCall(call)
     setShowTranscript(true)
+  }
+
+  const handlePlayRecording = (call: CallLog) => {
+    setSelectedCall(call)
+    setShowRecordingPlayer(true)
   }
 
 
@@ -327,7 +333,11 @@ export default function CallsPage() {
                         </button>
                       )}
                       {call.recording_url && (
-                        <button className="text-green-600 hover:text-green-900">
+                        <button 
+                          onClick={() => handlePlayRecording(call)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Play recording"
+                        >
                           <PlayIcon className="h-4 w-4" />
                         </button>
                       )}
@@ -468,6 +478,78 @@ export default function CallsPage() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recording Player Modal */}
+      {showRecordingPlayer && selectedCall && selectedCall.recording_url && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Call Recording - {selectedCall.phone_number_from}
+                </h3>
+                <button
+                  onClick={() => setShowRecordingPlayer(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Duration:</span> {formatDuration(selectedCall.duration_seconds)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Started:</span> {new Date(selectedCall.started_at).toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Status:</span> {selectedCall.status}
+                  </div>
+                  <div>
+                    <span className="font-medium">Direction:</span> {selectedCall.direction}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 border rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Audio Recording:</h4>
+                <audio 
+                  controls 
+                  className="w-full"
+                  preload="metadata"
+                >
+                  <source src={selectedCall.recording_url} type="audio/mpeg" />
+                  <source src={selectedCall.recording_url} type="audio/wav" />
+                  <source src={selectedCall.recording_url} type="audio/mp3" />
+                  Your browser does not support the audio element.
+                </audio>
+                
+                <div className="mt-4 flex justify-between items-center text-sm text-gray-500">
+                  <span>Recording URL: {selectedCall.recording_url}</span>
+                  <a 
+                    href={selectedCall.recording_url} 
+                    download={`call-recording-${selectedCall.id}.mp3`}
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+
+              {selectedCall.call_summary && (
+                <div className="mt-4 bg-blue-50 p-4 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Call Summary:</h4>
+                  <div className="text-sm text-gray-700">
+                    {selectedCall.call_summary}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
