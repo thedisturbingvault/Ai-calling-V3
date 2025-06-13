@@ -8,11 +8,14 @@ import {
   DocumentArrowUpIcon,
   EyeIcon,
   PencilIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  CogIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { useUser, usePermissions } from '../contexts/UserContext'
 import { DatabaseService } from '../services/database'
 import { RealtimeService } from '../services/realtime'
+import AutoDialerService, { type DialerConfig, type DialerStatus } from '../services/autoDialer'
 import type { Campaign, CampaignLead } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -23,8 +26,19 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showLeadsModal, setShowLeadsModal] = useState(false)
+  const [showDialerConfigModal, setShowDialerConfigModal] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [campaignLeads, setCampaignLeads] = useState<CampaignLead[]>([])
+  const [dialerStatus, setDialerStatus] = useState<DialerStatus>(AutoDialerService.getStatus())
+  const [dialerConfig, setDialerConfig] = useState<DialerConfig>({
+    maxConcurrentCalls: 3,
+    callTimeoutSeconds: 30,
+    retryAttempts: 3,
+    retryDelayMinutes: 60,
+    respectBusinessHours: true,
+    respectDNC: true,
+    callsPerMinute: 10
+  })
 
   useEffect(() => {
     if (user && canUseOutboundDialer) {
@@ -32,6 +46,15 @@ export default function CampaignsPage() {
       setupRealtimeSubscriptions()
     }
   }, [user, canUseOutboundDialer])
+
+  // Update dialer status every second
+  useEffect(() => {
+    const statusInterval = setInterval(() => {
+      setDialerStatus(AutoDialerService.getStatus())
+    }, 1000)
+
+    return () => clearInterval(statusInterval)
+  }, [])
 
   const loadCampaigns = async () => {
     if (!user) return
@@ -75,11 +98,58 @@ export default function CampaignsPage() {
 
   const handleStatusChange = async (campaignId: string, newStatus: Campaign['status']) => {
     try {
+      if (newStatus === 'active') {
+        // Check if another campaign is already running
+        if (dialerStatus.isRunning && dialerStatus.currentCampaignId !== campaignId) {
+          toast.error('Another campaign is already running. Please stop it first.')
+          return
+        }
+        
+        // Show dialer config modal before starting
+        setSelectedCampaign(campaigns.find(c => c.id === campaignId) || null)
+        setShowDialerConfigModal(true)
+        return
+      }
+      
+      if (newStatus === 'paused') {
+        const success = await AutoDialerService.pauseCampaign(campaignId)
+        if (success) {
+          await loadCampaigns()
+        }
+        return
+      }
+      
+      if (newStatus === 'completed') {
+        const success = await AutoDialerService.stopCampaign(campaignId)
+        if (success) {
+          await loadCampaigns()
+        }
+        return
+      }
+      
+      // For other status changes, use regular update
       await DatabaseService.updateCampaign(campaignId, { status: newStatus })
       toast.success(`Campaign ${newStatus}`)
+      await loadCampaigns()
+      
     } catch (error) {
       console.error('Error updating campaign status:', error)
       toast.error('Failed to update campaign status')
+    }
+  }
+
+  const startCampaignWithConfig = async () => {
+    if (!selectedCampaign) return
+    
+    try {
+      const success = await AutoDialerService.startCampaign(selectedCampaign.id, dialerConfig)
+      if (success) {
+        setShowDialerConfigModal(false)
+        await loadCampaigns()
+      }
+    } catch (error) {
+      console.error('Error starting campaign:', error)
+      toast.error('Failed to start campaign')
     }
   }
 
@@ -183,6 +253,56 @@ export default function CampaignsPage() {
           </button>
         </div>
       </div>
+
+      {/* Auto Dialer Status */}
+      {dialerStatus.isRunning && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="h-3 w-3 bg-green-400 rounded-full animate-pulse"></div>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-green-800">
+                Auto Dialer Active
+              </h3>
+              <div className="mt-2 text-sm text-green-700">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <span className="font-medium">Active Calls:</span> {dialerStatus.activeCalls}
+                  </div>
+                  <div>
+                    <span className="font-medium">Total Calls:</span> {dialerStatus.totalCalls}
+                  </div>
+                  <div>
+                    <span className="font-medium">Successful:</span> {dialerStatus.successfulCalls}
+                  </div>
+                  <div>
+                    <span className="font-medium">Failed:</span> {dialerStatus.failedCalls}
+                  </div>
+                </div>
+                {dialerStatus.lastCallTime && (
+                  <div className="mt-2">
+                    <span className="font-medium">Last Call:</span> {new Date(dialerStatus.lastCallTime).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="ml-3 flex-shrink-0">
+              <button
+                onClick={() => {
+                  if (dialerStatus.currentCampaignId) {
+                    handleStatusChange(dialerStatus.currentCampaignId, 'paused')
+                  }
+                }}
+                className="bg-yellow-100 text-yellow-700 text-sm font-medium py-1 px-3 rounded-md hover:bg-yellow-200 transition-colors"
+              >
+                <PauseIcon className="h-4 w-4 inline mr-1" />
+                Pause
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {campaigns.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -691,6 +811,172 @@ function CampaignLeadsModal({
           )}
         </div>
       </div>
+
+      {/* Dialer Configuration Modal */}
+      {showDialerConfigModal && selectedCampaign && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Configure Auto Dialer
+                </h3>
+                <button
+                  onClick={() => setShowDialerConfigModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900">Campaign: {selectedCampaign.name}</h4>
+                <p className="text-sm text-blue-700">Configure dialer settings before starting</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Max Concurrent Calls
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={dialerConfig.maxConcurrentCalls}
+                    onChange={(e) => setDialerConfig({
+                      ...dialerConfig,
+                      maxConcurrentCalls: parseInt(e.target.value) || 1
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Maximum number of simultaneous calls</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Calls Per Minute
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={dialerConfig.callsPerMinute}
+                    onChange={(e) => setDialerConfig({
+                      ...dialerConfig,
+                      callsPerMinute: parseInt(e.target.value) || 1
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Rate of dialing new calls</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Call Timeout (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    min="15"
+                    max="120"
+                    value={dialerConfig.callTimeoutSeconds}
+                    onChange={(e) => setDialerConfig({
+                      ...dialerConfig,
+                      callTimeoutSeconds: parseInt(e.target.value) || 30
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">How long to wait for answer</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Retry Attempts
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={dialerConfig.retryAttempts}
+                    onChange={(e) => setDialerConfig({
+                      ...dialerConfig,
+                      retryAttempts: parseInt(e.target.value) || 1
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Maximum retry attempts per lead</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Retry Delay (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="1440"
+                    value={dialerConfig.retryDelayMinutes}
+                    onChange={(e) => setDialerConfig({
+                      ...dialerConfig,
+                      retryDelayMinutes: parseInt(e.target.value) || 60
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Wait time between retry attempts</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={dialerConfig.respectBusinessHours}
+                      onChange={(e) => setDialerConfig({
+                        ...dialerConfig,
+                        respectBusinessHours: e.target.checked
+                      })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 block text-sm text-gray-900">
+                      Respect Business Hours (9 AM - 5 PM, Mon-Fri)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={dialerConfig.respectDNC}
+                      onChange={(e) => setDialerConfig({
+                        ...dialerConfig,
+                        respectDNC: e.target.checked
+                      })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 block text-sm text-gray-900">
+                      Respect Do Not Call List
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowDialerConfigModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={startCampaignWithConfig}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <PlayIcon className="h-4 w-4 inline mr-1" />
+                  Start Campaign
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -16,6 +16,7 @@ import StatusPage from './pages/StatusPage'
 import SettingsPage from './pages/SettingsPage'
 import Layout from './components/Layout'
 import LoadingSpinner from './components/LoadingSpinner'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -30,56 +31,104 @@ function AppContent() {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/agents" element={<AgentsPage />} />
-        <Route path="/calls" element={<CallsPage />} />
-        <Route path="/appointments" element={<AppointmentsPage />} />
-        <Route path="/campaigns" element={<CampaignsPage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/dnc" element={<DNCPage />} />
-        <Route path="/webhooks" element={<WebhooksPage />} />
-        <Route path="/billing" element={<BillingPage />} />
-        <Route path="/status" element={<StatusPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={
+            <ErrorBoundary>
+              <DashboardPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/agents" element={
+            <ErrorBoundary>
+              <AgentsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/calls" element={
+            <ErrorBoundary>
+              <CallsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/appointments" element={
+            <ErrorBoundary>
+              <AppointmentsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/campaigns" element={
+            <ErrorBoundary>
+              <CampaignsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/analytics" element={
+            <ErrorBoundary>
+              <AnalyticsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/dnc" element={
+            <ErrorBoundary>
+              <DNCPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/webhooks" element={
+            <ErrorBoundary>
+              <WebhooksPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/billing" element={
+            <ErrorBoundary>
+              <BillingPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/status" element={
+            <ErrorBoundary>
+              <StatusPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/settings" element={
+            <ErrorBoundary>
+              <SettingsPage />
+            </ErrorBoundary>
+          } />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </ErrorBoundary>
     </Layout>
   )
 }
 
 function App() {
   return (
-    <Router>
-      <UserProvider>
-        <AppContent />
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
+    <ErrorBoundary>
+      <Router>
+        <UserProvider>
+          <AppContent />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
               },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#10b981',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
-      </UserProvider>
-    </Router>
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+        </UserProvider>
+      </Router>
+    </ErrorBoundary>
   )
 }
 

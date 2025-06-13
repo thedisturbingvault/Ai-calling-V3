@@ -295,6 +295,29 @@ export class DatabaseService {
     return data
   }
 
+  static async getCampaign(id: string): Promise<Campaign | null> {
+    if (this.isDemoMode()) {
+      const campaigns = this.getDemoCampaigns()
+      return campaigns.find(c => c.id === id) || null
+    }
+
+    const { data, error } = await supabase
+      .from('outbound_campaigns')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null // Not found
+      }
+      console.error('Error getting campaign:', error)
+      throw error
+    }
+
+    return data
+  }
+
   static async deleteCampaign(id: string): Promise<boolean> {
     if (this.isDemoMode()) {
       console.log('Demo mode: Campaign deletion simulated')
