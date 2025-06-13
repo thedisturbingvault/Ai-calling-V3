@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { mockAuth } from '../lib/mockAuth'
 import type { User, Session } from '@supabase/supabase-js'
 
 export interface AuthError {
@@ -27,16 +26,12 @@ export interface ResetPasswordData {
 export class AuthService {
   // Check if we're in demo mode
   private static isDemoMode(): boolean {
-    return !import.meta.env.VITE_SUPABASE_URL || 
-           import.meta.env.VITE_SUPABASE_URL === 'https://demo.supabase.co'
+    // Always use real database - no more demo mode
+    return false
   }
 
   // Sign up new user
   static async signUp(data: SignUpData): Promise<{ user: User | null; error: AuthError | null }> {
-    if (this.isDemoMode()) {
-      return await mockAuth.signUp(data)
-    }
-
     try {
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
@@ -63,10 +58,6 @@ export class AuthService {
 
   // Sign in existing user
   static async signIn(data: SignInData): Promise<{ user: User | null; error: AuthError | null }> {
-    if (this.isDemoMode()) {
-      return await mockAuth.signInWithPassword(data)
-    }
-
     try {
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -86,11 +77,6 @@ export class AuthService {
 
   // Sign out user
   static async signOut(): Promise<{ error: AuthError | null }> {
-    if (this.isDemoMode()) {
-      await mockAuth.signOut()
-      return { error: null }
-    }
-
     try {
       const { error } = await supabase.auth.signOut()
       
@@ -107,11 +93,6 @@ export class AuthService {
 
   // Get current session
   static async getSession(): Promise<{ session: Session | null; error: AuthError | null }> {
-    if (this.isDemoMode()) {
-      const result = await mockAuth.getSession()
-      return { session: result.data.session, error: result.error }
-    }
-
     try {
       const { data, error } = await supabase.auth.getSession()
       
@@ -128,11 +109,6 @@ export class AuthService {
 
   // Reset password
   static async resetPassword(data: ResetPasswordData): Promise<{ error: AuthError | null }> {
-    if (this.isDemoMode()) {
-      const result = await mockAuth.resetPasswordForEmail(data.email)
-      return { error: result.error }
-    }
-
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
         redirectTo: `${window.location.origin}/reset-password`

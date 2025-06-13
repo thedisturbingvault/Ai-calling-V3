@@ -19,8 +19,8 @@ import type {
 export class DatabaseService {
   // Check if we're in demo mode
   private static isDemoMode(): boolean {
-    return !import.meta.env.VITE_SUPABASE_URL || 
-           import.meta.env.VITE_SUPABASE_URL === 'https://demo.supabase.co'
+    // Always use real database - no more demo mode
+    return false
   }
 
   // Profile operations
@@ -37,7 +37,7 @@ export class DatabaseService {
 
     if (error) {
       console.error('Error fetching profile:', error)
-      return this.getDemoProfile()
+      throw new Error(`Failed to fetch profile: ${error.message}`)
     }
 
     return data
@@ -46,7 +46,7 @@ export class DatabaseService {
   static async updateProfile(userId: string, updates: Partial<Profile>): Promise<Profile | null> {
     if (this.isDemoMode()) {
       console.log('Demo mode: Profile update simulated')
-      return { ...this.getDemoProfile(), ...updates }
+      throw new Error('Profile update failed in demo mode')
     }
 
     const { data, error } = await supabase
@@ -167,7 +167,7 @@ export class DatabaseService {
 
     if (error) {
       console.error('Error fetching call logs:', error)
-      return this.getDemoCallLogs()
+      throw new Error(`Failed to fetch call logs: ${error.message}`)
     }
 
     return data || []
@@ -248,7 +248,7 @@ export class DatabaseService {
 
     if (error) {
       console.error('Error fetching campaigns:', error)
-      return this.getDemoCampaigns()
+      throw new Error(`Failed to fetch campaigns: ${error.message}`)
     }
 
     return data || []

@@ -373,7 +373,9 @@ function CreateCampaignModal({ onClose, onSuccess }: { onClose: () => void; onSu
         total_leads: 0,
         leads_called: 0,
         leads_answered: 0,
-        leads_completed: 0
+        leads_completed: 0,
+        priority: 'normal',
+        custom_voice_name: formData.custom_voice_name as 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede' | 'Leda' | 'Orus' | 'Zephyr'
       })
       
       toast.success('Campaign created successfully')

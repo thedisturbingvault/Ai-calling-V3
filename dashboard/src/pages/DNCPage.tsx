@@ -344,7 +344,10 @@ function AddDNCModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       await DatabaseService.addDNCEntry({
         ...formData,
         profile_id: user.id,
-        expiry_date: formData.expiry_date || null
+        expiry_date: formData.expiry_date || undefined,
+        is_active: true,
+        added_date: new Date().toISOString(),
+        source: formData.source as 'customer_request' | 'legal_requirement' | 'manual' | 'complaint'
       })
       
       toast.success('Number added to DNC list')
@@ -476,8 +479,10 @@ function BulkUploadModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           return {
             profile_id: user.id,
             phone_number: phoneNumber,
-            source: 'manual',
-            notes: 'Bulk upload'
+            source: 'manual' as 'customer_request' | 'legal_requirement' | 'manual' | 'complaint',
+            notes: 'Bulk upload',
+            is_active: true,
+            added_date: new Date().toISOString()
           }
         }).filter(entry => entry.phone_number)
 

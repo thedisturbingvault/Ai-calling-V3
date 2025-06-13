@@ -24,8 +24,8 @@ export class RealtimeService {
 
   // Check if we're in demo mode
   private static isDemoMode(): boolean {
-    return !import.meta.env.VITE_SUPABASE_URL || 
-           import.meta.env.VITE_SUPABASE_URL === 'https://demo.supabase.co'
+    // Always use real database - no more demo mode
+    return false
   }
 
   // Subscribe to call log updates for a specific profile

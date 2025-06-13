@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { supabase } from '../lib/supabase'
-import { mockAuth } from '../lib/mockAuth'
 import toast from 'react-hot-toast'
 
 export default function LoginForm() {
@@ -17,37 +16,21 @@ export default function LoginForm() {
 
     try {
       if (isSignUp) {
-        // Try Supabase first, fallback to mock
-        try {
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-          })
-          if (error) throw error
-          toast.success('Check your email for the confirmation link!')
-        } catch (supabaseError) {
-          const { error } = await mockAuth.signUp({ email, password })
-          if (error) throw error
-          toast.success('Account created! (Demo mode)')
-        }
+        // Use real Supabase authentication only
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+        if (error) throw error
+        toast.success('Check your email for the confirmation link!')
       } else {
-        // Try Supabase first, fallback to mock
-        try {
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-          if (error) throw error
-          toast.success('Welcome back!')
-        } catch (supabaseError) {
-          const { data, error } = await mockAuth.signInWithPassword({ email, password })
-          if (error) throw error
-          if (data.user) {
-            toast.success('Welcome back! (Demo mode)')
-            // Trigger a page reload to update auth state
-            window.location.reload()
-          }
-        }
+        // Use real Supabase authentication only
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (error) throw error
+        toast.success('Welcome back!')
       }
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed')

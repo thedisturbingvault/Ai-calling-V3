@@ -3,13 +3,10 @@ import {
   PlusIcon, 
   PlayIcon, 
   PauseIcon, 
-  StopIcon, 
   TrashIcon,
   PencilIcon,
-  PhoneIcon,
   ClockIcon,
   UserIcon,
-  CogIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { useUser, usePermissions } from '../contexts/UserContext'
@@ -61,7 +58,6 @@ const TIMEZONES = [
 
 export default function AgentsPage() {
   const { user } = useUser()
-  const { canUseInbound } = usePermissions()
   const [agents, setAgents] = useState<AIAgent[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -376,7 +372,9 @@ function CreateAgentModal({ onClose, onSuccess }: { onClose: () => void; onSucce
       await DatabaseService.createAIAgent({
         ...formData,
         profile_id: user.id,
-        is_active: true
+        is_active: true,
+        agent_type: formData.agent_type as 'customer_service' | 'sales' | 'support' | 'appointment_booking' | 'survey' | 'after_hours' | 'general',
+        voice_name: formData.voice_name as 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede' | 'Leda' | 'Orus' | 'Zephyr'
       })
       
       toast.success('AI agent created successfully')

@@ -325,7 +325,7 @@ export default function BillingPage() {
                       {currentPlan?.name} Plan - {record.usage_type}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(record.total_cost)}
+                      {formatCurrency(record.total_cost || 0)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
